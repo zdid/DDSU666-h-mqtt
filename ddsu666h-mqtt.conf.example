@@ -1,0 +1,20 @@
+# Exemple de fichier de configuration : python3 ddsu666h-mqtt.py --config /etc/ddsu666h-mqtt.conf
+# Les clés sont les options de la ligne de commande sans « -- » ; la ligne de commande a la priorité sur ce fichier.
+# Si le fichier contient un mot de passe : chmod 600 /etc/ddsu666h-mqtt.conf
+[ddsu666h]
+device = /dev/ttyUSB0
+baud = 9600
+parity = N
+address = 11
+
+mqtt-host = 127.0.0.1
+mqtt-port = 1883
+# Connexion anonyme si mqtt-user est vide
+mqtt-user =
+mqtt-password =
+
+prefix = homeassistant
+topic = ddsu666h
+node = ddsu666h
+name = Compteur DDSU666-H
+interval = 5

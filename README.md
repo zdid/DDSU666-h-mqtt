@@ -38,13 +38,18 @@ sudo systemctl enable --now ddsu666h-mqtt
 
 ## Options
 
+Les réglages se donnent par la **ligne de commande**, par un **fichier de configuration**, ou les deux (voir plus bas).
+
 | Option | Défaut | Rôle |
 |---|---|---|
+| `--config` | | fichier de configuration INI (voir plus bas) |
 | `--device` | `/dev/ttyUSB0` | port série de l'adaptateur RS485 |
 | `--baud` | `9600` | vitesse (2400, 4800, 9600, 19200, 38400) |
 | `--parity` | `N` | parité : `N` (8N1) ou `E` (8E1) |
 | `--address` | `11` | adresse Modbus du compteur |
-| `--mqtt-host` / `--mqtt-port` | `127.0.0.1` / `1883` | broker MQTT (sans authentification) |
+| `--mqtt-host` / `--mqtt-port` | `127.0.0.1` / `1883` | broker MQTT |
+| `--mqtt-user` | *(vide)* | nom d'utilisateur MQTT ; vide = connexion anonyme |
+| `--mqtt-password` | *(vide)* | mot de passe MQTT (demande `--mqtt-user`) |
 | `--prefix` | `homeassistant` | préfixe de découverte de Home Assistant |
 | `--topic` | `ddsu666h` | thème MQTT de l'état (`<thème>/state`) |
 | `--node` | `ddsu666h` | identifiant du nœud dans la découverte |
@@ -52,6 +57,30 @@ sudo systemctl enable --now ddsu666h-mqtt
 | `--interval` | `5` | secondes entre deux lectures (1 à 60) |
 | `--once` | | une seule lecture puis sortie |
 | `--dry-run` | | affiche les messages au lieu de les envoyer |
+
+## Fichier de configuration
+
+`--config fichier.conf` lit un fichier INI avec une section `[ddsu666h]` (modèle : `ddsu666h-mqtt.conf.example`). Les clés
+sont les noms des options sans `--` (`mqtt-host` ou `mqtt_host`, indifféremment). **La ligne de commande a la priorité sur
+le fichier, qui a la priorité sur les valeurs par défaut.**
+
+```ini
+[ddsu666h]
+address = 11
+mqtt-host = 192.168.1.10
+mqtt-user = compteur
+mqtt-password = secret
+interval = 5
+```
+
+```bash
+sudo install -m 600 ddsu666h-mqtt.conf.example /etc/ddsu666h-mqtt.conf   # puis l'éditer
+python3 ddsu666h-mqtt.py --config /etc/ddsu666h-mqtt.conf
+```
+
+**Mot de passe MQTT** : préférez le fichier (droits `600`, le script avertit s'il est lisible par d'autres). Sur la
+ligne de commande, le mot de passe est visible dans la liste des processus de la machine (`ps`), y compris dans celle
+de `mosquitto_pub` qui le reçoit en argument à chaque publication.
 
 ## Ce qui est publié
 

@@ -15,9 +15,13 @@
 # Home Assistant : messages de découverte RETENUS sous <préfixe>/sensor/<nœud>/<mesure>/config (un appareil, 10 capteurs),
 # état en un seul message JSON sur <thème>/state, `expire_after` : si le script s'arrête, les capteurs passent « indisponible ».
 #
+# Réglages : options de la ligne de commande ET/OU fichier de configuration (--config fichier.conf, format INI, voir
+# ddsu666h-mqtt.conf.example). Priorité : ligne de commande > fichier > valeurs par défaut.
+#
 # Usage : python3 ddsu666h-mqtt.py [options]      (--help pour la liste ; --dry-run n'envoie rien à MQTT)
 
 import argparse
+import configparser
 import json
 import os
 import select
@@ -134,6 +138,10 @@ def publish(args, topic, payload, retain=False):
         print("MQTT %s%s %s" % (topic, " (retenu)" if retain else "", payload))
         return True
     cmd = ["mosquitto_pub", "-h", args.mqtt_host, "-p", str(args.mqtt_port), "-t", topic, "-m", payload, "-q", "0"]
+    if args.mqtt_user:
+        cmd += ["-u", args.mqtt_user]
+        if args.mqtt_password:
+            cmd += ["-P", args.mqtt_password]
     if retain:
         cmd.append("-r")
     try:
@@ -142,14 +150,37 @@ def publish(args, topic, payload, retain=False):
         return False
 
 
+BOOLEANS = ("once", "dry_run")
+
+
+def load_config(path, valid):
+    """Lit le fichier INI (section [ddsu666h]) ; renvoie {nom_d_option: valeur}. Les clés sont les noms des options
+    sans « -- » (tiret ou souligné indifféremment : mqtt-host = mqtt_host)."""
+    cp = configparser.ConfigParser(interpolation=None)   # sans interpolation : un mot de passe peut contenir « % »
+    with open(path, encoding="utf-8") as f:
+        cp.read_file(f)
+    if not cp.has_section("ddsu666h"):
+        sys.exit("%s : section [ddsu666h] absente" % path)
+    values = {}
+    for key, raw in cp.items("ddsu666h"):
+        dest = key.strip().lower().replace("-", "_")
+        if dest not in valid:
+            sys.exit("%s : option inconnue « %s »" % (path, key))
+        values[dest] = raw.strip().lower() in ("1", "true", "yes", "oui", "on") if dest in BOOLEANS else raw.strip()
+    return values
+
+
 def main():
     ap = argparse.ArgumentParser(description="DDSU666-H (RS485) -> MQTT + découverte Home Assistant")
+    ap.add_argument("--config", help="fichier de configuration INI (section [ddsu666h]) ; la ligne de commande a la priorité")
     ap.add_argument("--device", default="/dev/ttyUSB0")
     ap.add_argument("--baud", type=int, default=9600)
     ap.add_argument("--parity", default="N", choices=["N", "E"])
     ap.add_argument("--address", type=int, default=11)
     ap.add_argument("--mqtt-host", default="127.0.0.1")
     ap.add_argument("--mqtt-port", type=int, default=1883)
+    ap.add_argument("--mqtt-user", default="", help="nom d'utilisateur MQTT (vide = connexion anonyme)")
+    ap.add_argument("--mqtt-password", default="", help="mot de passe MQTT (préférer le fichier de configuration, voir le README)")
     ap.add_argument("--prefix", default="homeassistant", help="préfixe de découverte de Home Assistant")
     ap.add_argument("--topic", default="ddsu666h", help="thème de l'état")
     ap.add_argument("--node", default="ddsu666h")
@@ -157,7 +188,23 @@ def main():
     ap.add_argument("--interval", type=int, default=5, help="secondes entre deux lectures (1 à 60)")
     ap.add_argument("--once", action="store_true", help="une seule lecture puis sortie")
     ap.add_argument("--dry-run", action="store_true", help="affiche les messages au lieu de les envoyer à MQTT")
+    known, _ = ap.parse_known_args()
+    if known.config:
+        try:
+            values = load_config(known.config, {a.dest for a in ap._actions} - {"help", "config"})
+        except OSError as e:
+            sys.exit("fichier de configuration illisible : %s" % e)
+        ap.set_defaults(**values)
+        if values.get("mqtt_password") and os.stat(known.config).st_mode & 0o077:
+            print("Attention : %s contient un mot de passe et est lisible par d'autres utilisateurs (chmod 600)" % known.config,
+                  file=sys.stderr, flush=True)
     args = ap.parse_args()
+    if args.baud not in BAUDS:
+        ap.error("--baud : valeurs possibles %s" % sorted(BAUDS))
+    if args.parity not in ("N", "E"):
+        ap.error("--parity : N ou E")
+    if args.mqtt_password and not args.mqtt_user:
+        ap.error("--mqtt-password demande --mqtt-user")
     args.interval = min(60, max(1, args.interval))
 
     fd = open_serial(args.device, args.baud, args.parity)
