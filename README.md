@@ -132,7 +132,7 @@ python3 outils/modbus-probe.py /dev/ttyUSB0 9600 11 1
 
 ## Statut
 
-Version **0.9** : utilisé en continu sur un Raspberry Pi 3 (Raspbian 32 bits, Python 3.7) avec un DDSU666-H Huawei, adresse 11,
+Version **0.9.1** : utilisé en continu sur un Raspberry Pi 3 (Raspbian 32 bits, Python 3.7) avec un DDSU666-H Huawei, adresse 11,
 9600 8N1, publication toutes les 5 s vers un broker Mosquitto et Home Assistant. Les mesures ont été comparées à celles d'un
 second compteur sur la même ligne (tension et puissance concordantes ; courant environ 4 % d'écart entre les deux compteurs).
 
