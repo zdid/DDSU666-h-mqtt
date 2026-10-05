@@ -1,0 +1,13 @@
+[Unit]
+Description=DDSU666-H (RS485) vers MQTT / Home Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Adaptez le port série, l'adresse du compteur et le broker MQTT.
+ExecStart=/usr/bin/python3 /opt/ddsu666h-mqtt/ddsu666h-mqtt.py --device /dev/ttyUSB0 --address 11 --mqtt-host 127.0.0.1
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
